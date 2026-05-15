@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoiceTune — Auto-Tune Your Voice</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050810;
+    --surface: #0d1220;
+    --border: #1a2540;
+    --accent: #00f5d4;
+    --accent2: #ff2d78;
+    --accent3: #a259ff;
+    --text: #e0eaff;
+    --muted: #4a5a7a;
+    --glow: 0 0 20px #00f5d480;
+    --glow2: 0 0 20px #ff2d7880;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    padding: 20px;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,212,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 680px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    padding: 30px 0 20px;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(28px, 6vw, 48px);
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent3), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 4px;
+    text-shadow: none;
+    animation: logoGlow 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes logoGlow {
+    from { filter: drop-shadow(0 0 8px #00f5d460); }
+    to { filter: drop-shadow(0 0 20px #a259ff80); }
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 6px;
+    font-weight: 300;
+  }
+
+  /* Visualizer */
+  .viz-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin: 20px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .viz-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  canvas {
+    width: 100%;
+    height: 80px;
+    display: block;
+    border-radius: 8px;
+    background: #080e1a;
+  }
+
+  /* Controls */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: var(--glow);
+  }
+
+  /* Sliders */
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .control-item label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .control-item label span {
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent) var(--pct, 50%), var(--border) var(--pct, 50%));
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+    transition: transform 0.1s;
+  }
+
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
+
+  /* Scale selector */
+  .scale-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .scale-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .scale-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+  .scale-btn.active {
+    background: var(--accent3);
+    border-color: var(--accent3);
+    color: #fff;
+    box-shadow: 0 0 12px #a259ff60;
+  }
+
+  /* Big record/play button */
+  .action-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: 8px 0;
+  }
+
+  .big-btn {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    position: relative;
+    transition: all 0.3s;
+    box-shadow: 0 0 20px #00f5d430, inset 0 0 20px #00f5d410;
+  }
+
+  .big-btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 35px #00f5d460, inset 0 0 30px #00f5d420;
+  }
+
+  .big-btn.recording {
+    border-color: var(--accent2);
+    box-shadow: 0 0 30px #ff2d7860, inset 0 0 20px #ff2d7820;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  .big-btn.processing {
+    border-color: var(--accent3);
+    box-shadow: 0 0 30px #a259ff60;
+    animation: spin-glow 1.5s linear infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 20px #ff2d7840; }
+    50% { transform: scale(1.08); box-shadow: 0 0 40px #ff2d7880; }
+  }
+
+  @keyframes spin-glow {
+    0% { box-shadow: 0 0 20px #a259ff60, 20px 0 0 -8px #a259ff; }
+    100% { box-shadow: 0 0 20px #a259ff60, -20px 0 0 -8px #a259ff; }
+  }
+
+  .btn-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Action buttons row */
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .action-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+  }
+
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .action-btn.primary {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .action-btn.primary:not(:disabled):hover {
+    background: var(--accent);
+    color: #000;
+    box-shadow: var(--glow);
+  }
+
+  .action-btn.danger {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .action-btn.danger:not(:disabled):hover {
+    background: var(--accent2);
+    color: #fff;
+    box-shadow: var(--glow2);
+  }
+
+  /* Status */
+  .status {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    min-height: 20px;
+    transition: all 0.3s;
+  }
+
+  .status.active { color: var(--accent); }
+  .status.error { color: var(--accent2); }
+
+  /* Audio player */
+  .player-section {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .player-section.visible { display: flex; }
+
+  .audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #080e1a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+
+  .play-pause {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 10px #00f5d460;
+    transition: transform 0.1s;
+  }
+
+  .play-pause:hover { transform: scale(1.1); }
+
+  .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s;
+    pointer-events: none;
+  }
+
+  .time-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .download-btn {
+    background: linear-gradient(135deg, var(--accent3), var(--accent2));
+    border: none;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .download-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px #a259ff50;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent3);
+    background: rgba(162,89,255,0.05);
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-text { font-size: 13px; color: var(--muted); letter-spacing: 1px; }
+  .upload-sub { font-size: 11px; color: #2a3a5a; margin-top: 4px; }
+
+  /* Waveform bars animation */
+  .wave-bars {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    justify-content: center;
+    height: 30px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: wavebar 0.8s ease-in-out infinite;
+    opacity: 0.4;
+  }
+
+  @for $i from 1 through 8 {
+    .wave-bar:nth-child(#{$i}) { animation-delay: #{$i * 0.1}s; }
+  }
+
+  @keyframes wavebar {
+    0%, 100% { height: 6px; opacity: 0.3; }
+    50% { height: 24px; opacity: 1; }
+  }
+
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.15s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.05s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.25s; }
+
+  .hidden { display: none !important; }
+
+  footer {
+    text-align: center;
+    padding: 24px 0 12px;
+    color: #1e2d4a;
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">VOICETUNE</div>
+    <div class="tagline">Record · Transform · Auto-Tune</div>
+  </header>
+
+  <!-- Live Visualizer -->
+  <div class="viz-container">
+    <div class="viz-label">Live Input</div>
+    <canvas id="inputCanvas"></canvas>
+  </div>
+
+  <!-- Record Card -->
+  <div class="card">
+    <div class="card-title">Voice Recording</div>
+
+    <div class="action-area">
+      <button class="big-btn" id="recordBtn" title="Hold to record">🎤</button>
+      <div class="btn-label" id="recordLabel">Tap to Record</div>
+    </div>
+
+    <div class="status" id="statusMsg">Ready — Record ya File Upload karo</div>
+
+    <div style="margin-top:16px; display:flex; align-items:center; gap:10px;">
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+      <span style="font-size:11px; color:var(--muted); letter-spacing:2px;">YA</span>
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone" style="margin-top:16px;">
+      <input type="file" id="fileInput" accept="audio/*">
+      <div class="upload-icon">📁</div>
+      <div class="upload-text">Audio File Upload Karo</div>
+      <div class="upload-sub">MP3, WAV, OGG, M4A — koi bhi</div>
+    </div>
+  </div>
+
+  <!-- Auto-Tune Settings -->
+  <div class="card">
+    <div class="card-title">Auto-Tune Settings</div>
+
+    <div class="controls-grid">
+      <div class="control-item">
+        <label>Pitch Shift <span id="pitchVal">0</span></label>
+        <input type="range" id="pitchShift" min="-12" max="12" value="0" step="1">
+      </div>
+      <div class="control-item">
+        <label>Vibrato <span id="vibratoVal">3</span></label>
+        <input type="range" id="vibratoDepth" min="0" max="20" value="3" step="1">
+      </div>
+      <div class="control-item">
+        <label>Correction <span id="correctionVal">80</span>%</label>
+        <input type="range" id="correction" min="0" max="100" value="80" step="5">
+      </div>
+      <div class="control-item">
+        <label>Robot FX <span id="robotVal">0</span>%</label>
+        <input type="range" id="robotEffect" min="0" max="100" value="0" step="5">
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="card-title" style="margin-bottom:12px;">Musical Scale</div>
+      <div class="scale-grid" id="scaleGrid">
+        <button class="scale-btn active" data-scale="chromatic">Chromatic</button>
+        <button class="scale-btn" data-scale="major">Major</button>
+        <button class="scale-btn" data-scale="minor">Minor</button>
+        <button class="scale-btn" data-scale="pentatonic">Pentatonic</button>
+        <button class="scale-btn" data-scale="blues">Blues</button>
+        <button class="scale-btn" data-scale="arabic">Arabic</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Process & Output -->
+  <div class="card">
+    <div class="card-title">Process & Output</div>
+
+    <div class="btn-row">
+      <button class="action-btn primary" id="processBtn" disabled>⚡ Apply Auto-Tune</button>
+      <button class="action-btn danger" id="clearBtn" disabled>✕ Clear</button>
+    </div>
+
+    <div id="processingBar" class="hidden" style="margin-top:16px; text-align:center;">
+      <div class="wave-bars">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div style="margin-top:8px; font-size:12px; color:var(--accent3); letter-spacing:2px;">Processing…</div>
+    </div>
+
+    <!-- Output Visualizer -->
+    <div id="outputVizSection" class="hidden" style="margin-top:16px;">
+      <div class="viz-label" style="color:var(--accent3);">Auto-Tuned Output</div>
+      <canvas id="outputCanvas"></canvas>
+    </div>
+
+    <!-- Player -->
+    <div class="player-section" id="playerSection" style="margin-top:16px;">
+      <div class="audio-controls">
+        <button class="play-pause" id="playPauseBtn">▶</button>
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="time-display" id="timeDisplay">0:00</div>
+      </div>
+      <button class="download-btn" id="downloadBtn">⬇ Download Auto-Tuned Track</button>
+    </div>
+  </div>
+
+  <footer>VOICETUNE — Pure Web Audio API Magic</footer>
+</div>
+
+<script>
+// ===== STATE =====
+let audioCtx = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+let sourceAudioBuffer = null;
+let outputBlob = null;
+let outputAudioBuffer = null;
+let playbackSource = null;
+let isPlaying = false;
+let playStartTime = 0;
+let playOffset = 0;
+let animFrameId = null;
+let inputAnalyser = null;
+let micStream = null;
+
+// ===== SCALES (semitones from root) =====
+const SCALES = {
+  chromatic:  [0,1,2,3,4,5,6,7,8,9,10,11],
+  major:      [0,2,4,5,7,9,11],
+  minor:      [0,2,3,5,7,8,10],
+  pentatonic: [0,2,4,7,9],
+  blues:      [0,3,5,6,7,10],
+  arabic:     [0,1,4,5,7,8,11],
+};
+let selectedScale = 'chromatic';
+
+// ===== INIT AUDIO CONTEXT =====
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// ===== UI ELEMENTS =====
+const recordBtn    = document.getElementById('recordBtn');
+const recordLabel  = document.getElementById('recordLabel');
+const statusMsg    = document.getElementById('statusMsg');
+const processBtn   = document.getElementById('processBtn');
+const clearBtn     = document.getElementById('clearBtn');
+const processingBar = document.getElementById('processingBar');
+const playerSection = document.getElementById('playerSection');
+const outputVizSection = document.getElementById('outputVizSection');
+const playPauseBtn = document.getElementById('playPauseBtn');
+const progressFill = document.getElementById('progressFill');
+const progressBar  = document.getElementById('progressBar');
+const timeDisplay  = document.getElementById('timeDisplay');
+const downloadBtn  = document.getElementById('downloadBtn');
+const fileInput    = document.getElementById('fileInput');
+const uploadZone   = document.getElementById('uploadZone');
+
+// Sliders
+const pitchSlider     = document.getElementById('pitchShift');
+const vibratoSlider   = document.getElementById('vibratoDepth');
+const correctionSlider = document.getElementById('correction');
+const robotSlider     = document.getElementById('robotEffect');
+
+// ===== SLIDER DISPLAY =====
+function setupSlider(slider, display, suffix='') {
+  const update = () => {
+    display.textContent = slider.value + suffix;
+    const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+    slider.style.setProperty('--pct', pct + '%');
+  };
+  slider.addEventListener('input', update);
+  update();
+}
+setupSlider(pitchSlider,     document.getElementById('pitchVal'));
+setupSlider(vibratoSlider,   document.getElementById('vibratoVal'));
+setupSlider(correctionSlider,document.getElementById('correctionVal'));
+setupSlider(robotSlider,     document.getElementById('robotVal'));
+
+// ===== SCALE BUTTONS =====
+document.getElementById('scaleGrid').addEventListener('click', e => {
+  const btn = e.target.closest('.scale-btn');
+  if (!btn) return;
+  document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedScale = btn.dataset.scale;
+});
+
+// ===== CANVAS VISUALIZERS =====
+const inputCanvas  = document.getElementById('inputCanvas');
+const outputCanvas = document.getElementById('outputCanvas');
+const inputCtx2d  = inputCanvas.getContext('2d');
+const outputCtx2d = outputCanvas.getContext('2d');
+
+function resizeCanvas(canvas) {
+  canvas.width  = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+}
+window.addEventListener('resize', () => {
+  resizeCanvas(inputCanvas);
+  resizeCanvas(outputCanvas);
+});
+resizeCanvas(inputCanvas);
+resizeCanvas(outputCanvas);
+
+function drawWaveform(ctx2d, canvas, dataArray, color1='#00f5d4', color2='#a259ff') {
+  const W = canvas.width, H = canvas.height;
+  ctx2d.clearRect(0,0,W,H);
+  ctx2d.fillStyle = '#080e1a';
+  ctx2d.fillRect(0,0,W,H);
+
+  const sliceW = W / dataArray.length;
+  const grad = ctx2d.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0, color1);
+  grad.addColorStop(0.5, color2);
+  grad.addColorStop(1, color1);
+
+  ctx2d.lineWidth = 2;
+  ctx2d.strokeStyle = grad;
+  ctx2d.shadowBlur = 8;
+  ctx2d.shadowColor = color1;
+  ctx2d.beginPath();
+
+  let x = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = (v * H) / 2;
+    i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+    x += sliceW;
+  }
+  ctx2d.lineTo(W, H/2);
+  ctx2d.stroke();
+  ctx2d.shadowBlur = 0;
+}
+
+function drawFlatLine(ctx2d, canvas, color='#1a2540') {
+  const W = canvas.width, H = canvas.height;
+  ctx2d.clearRect(0,0,W,H);
+  ctx2d.fillStyle = '#080e1a';
+  ctx2d.fillRect(0,0,W,H);
+  ctx2d.strokeStyle = color;
+  ctx2d.lineWidth = 1;
+  ctx2d.beginPath();
+  ctx2d.moveTo(0, H/2);
+  ctx2d.lineTo(W, H/2);
+  ctx2d.stroke();
+}
+drawFlatLine(inputCtx2d, inputCanvas);
+drawFlatLine(outputCtx2d, outputCanvas, '#a259ff30');
+
+// ===== RECORDING =====
+recordBtn.addEventListener('click', async () => {
+  if (isRecording) stopRecording();
+  else await startRecording();
+});
+
+async function startRecording() {
+  try {
+    const ctx = getAudioCtx();
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // Live visualizer
+    inputAnalyser = ctx.createAnalyser();
+    inputAnalyser.fftSize = 2048;
+    const src = ctx.createMediaStreamSource(micStream);
+    src.connect(inputAnalyser);
+    const dataArray = new Uint8Array(inputAnalyser.frequencyBinCount);
+
+    function drawLive() {
+      animFrameId = requestAnimationFrame(drawLive);
+      inputAnalyser.getByteTimeDomainData(dataArray);
+      drawWaveform(inputCtx2d, inputCanvas, dataArray);
+    }
+    drawLive();
+
+    mediaRecorder = new MediaRecorder(micStream);
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => handleRecordingStop();
+    mediaRecorder.start(100);
+
+    isRecording = true;
+    recordBtn.classList.add('recording');
+    recordBtn.textContent = '⏹';
+    recordLabel.textContent = 'Tap to Stop';
+    setStatus('Recording… 🔴', 'active');
+  } catch(err) {
+    setStatus('Microphone access denied!', 'error');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  cancelAnimationFrame(animFrameId);
+  isRecording = false;
+  recordBtn.classList.remove('recording');
+  recordBtn.textContent = '🎤';
+  recordLabel.textContent = 'Tap to Record';
+}
+
+async function handleRecordingStop() {
+  const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+  await loadAudioBlob(blob);
+}
+
+// ===== FILE UPLOAD =====
+fileInput.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (file) await loadAudioBlob(file);
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', async e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) await loadAudioBlob(file);
+});
+
+async function loadAudioBlob(blob) {
+  setStatus('Loading audio…', 'active');
+  try {
+    const ctx = getAudioCtx();
+    const arrayBuf = await blob.arrayBuffer();
+    sourceAudioBuffer = await ctx.decodeAudioData(arrayBuf);
+
+    // Draw source waveform
+    const data = sourceAudioBuffer.getChannelData(0);
+    const display = new Uint8Array(512);
+    const step = Math.floor(data.length / 512);
+    for (let i = 0; i < 512; i++) display[i] = Math.floor((data[i * step] + 1) * 128);
+    drawWaveform(inputCtx2d, inputCanvas, display);
+
+    processBtn.disabled = false;
+    clearBtn.disabled = false;
+    setStatus(`✓ Audio loaded (${sourceAudioBuffer.duration.toFixed(1)}s) — Apply Auto-Tune karo!`, 'active');
+    // Reset output
+    playerSection.classList.remove('visible');
+    outputVizSection.classList.add('hidden');
+    outputBlob = null;
+  } catch(err) {
+    setStatus('Audio load karne mein error: ' + err.message, 'error');
+  }
+}
+
+// ===== AUTO-TUNE PROCESSING =====
+processBtn.addEventListener('click', async () => {
+  if (!sourceAudioBuffer) return;
+  processBtn.disabled = true;
+  clearBtn.disabled = true;
+  processingBar.classList.remove('hidden');
+  playerSection.classList.remove('visible');
+  outputVizSection.classList.add('hidden');
+  setStatus('Auto-tuning… 🎵', 'active');
+
+  try {
+    await new Promise(r => setTimeout(r, 50)); // let UI update
+    outputAudioBuffer = await applyAutoTune(sourceAudioBuffer);
+
+    // Draw output waveform
+    const data = outputAudioBuffer.getChannelData(0);
+    const display = new Uint8Array(512);
+    const step = Math.floor(data.length / 512);
+    for (let i = 0; i < 512; i++) display[i] = Math.floor((data[i * step] + 1) * 128);
+    outputVizSection.classList.remove('hidden');
+    drawWaveform(outputCtx2d, outputCanvas, display, '#a259ff', '#ff2d78');
+
+    // Encode to WAV and show player
+    outputBlob = audioBufferToWav(outputAudioBuffer);
+    playerSection.classList.add('visible');
+    setStatus('✅ Auto-tune ho gaya! Play ya Download karo 🎶', 'active');
+  } catch(err) {
+    setStatus('Processing error: ' + err.message, 'error');
+    console.error(err);
+  }
+
+  processingBar.classList.add('hidden');
+  processBtn.disabled = false;
+  clearBtn.disabled = false;
+});
+
+// ===== CORE AUTO-TUNE ALGORITHM =====
+async function applyAutoTune(buffer) {
+  const ctx = getAudioCtx();
+  const sr = buffer.sampleRate;
+  const nCh = buffer.numberOfChannels;
+  const pitchSemitones = parseInt(pitchSlider.value);
+  const vibratoDepth   = parseInt(vibratoSlider.value);
+  const correction     = parseInt(correctionSlider.value) / 100;
+  const robotAmt       = parseInt(robotSlider.value) / 100;
+  const scale          = SCALES[selectedScale];
+
+  // Work on each channel
+  const outChannels = [];
+  for (let ch = 0; ch < nCh; ch++) {
+    const input = buffer.getChannelData(ch);
+    const output = autoTuneChannel(input, sr, pitchSemitones, vibratoDepth, correction, robotAmt, scale);
+    outChannels.push(output);
+  }
+
+  const outBuf = ctx.createBuffer(nCh, outChannels[0].length, sr);
+  for (let ch = 0; ch < nCh; ch++) outBuf.copyToChannel(outChannels[ch], ch);
+  return outBuf;
+}
+
+function autoTuneChannel(input, sr, pitchSemitones, vibratoDepth, correction, robotAmt, scale) {
+  const len = input.length;
+
+  // 1. Pitch shift via resampling (simple but effective)
+  const totalShift = pitchSemitones + getAutoTuneCorrection(input, sr, scale, correction);
+  const ratio = Math.pow(2, totalShift / 12);
+
+  // Phase-vocoder style pitch shift using overlapping windows
+  const frameSize = 2048;
+  const hopSize = 512;
+  const output = new Float32Array(len);
+  const window = makeHannWindow(frameSize);
+
+  // Simple OLA pitch shifting
+  let writePos = 0;
+  for (let readPos = 0; readPos < len - frameSize; readPos += Math.round(hopSize * ratio)) {
+    const frame = new Float32Array(frameSize);
+    for (let i = 0; i < frameSize && readPos + i < len; i++) {
+      frame[i] = input[readPos + i] * window[i];
+    }
+
+    // Vibrato LFO
+    const lfoPhase = (readPos / sr) * 5; // 5Hz LFO
+    const vibratoMod = vibratoDepth > 0 ? Math.sin(lfoPhase * Math.PI * 2) * (vibratoDepth * 0.002) : 0;
+
+    const writeStart = Math.floor(writePos);
+    for (let i = 0; i < frameSize && writeStart + i < len; i++) {
+      const jitter = vibratoMod * i;
+      const srcIdx = i + jitter;
+      const s0 = Math.floor(srcIdx);
+      const s1 = s0 + 1;
+      const frac = srcIdx - s0;
+      const sample = s0 >= 0 && s1 < frameSize
+        ? frame[s0] * (1 - frac) + (frame[s1] || 0) * frac
+        : (s0 >= 0 && s0 < frameSize ? frame[s0] : 0);
+      output[writeStart + i] += sample;
+    }
+    writePos += hopSize;
+    if (writePos >= len) break;
+  }
+
+  // Normalize
+  let maxAmp = 0;
+  for (let i = 0; i < output.length; i++) maxAmp = Math.max(maxAmp, Math.abs(output[i]));
+  if (maxAmp > 0.01) {
+    const gain = 0.85 / maxAmp;
+    for (let i = 0; i < output.length; i++) output[i] *= gain;
+  } else {
+    // Fallback: just copy
+    for (let i = 0; i < output.length; i++) output[i] = input[i] * 0.85;
+  }
+
+  // 2. Robot effect (ring mod with itself shifted)
+  if (robotAmt > 0) {
+    const robotFreq = 75; // carrier freq
+    for (let i = 0; i < output.length; i++) {
+      const carrier = Math.sin(2 * Math.PI * robotFreq * i / sr);
+      output[i] = output[i] * (1 - robotAmt) + output[i] * carrier * robotAmt * 2;
+    }
+  }
+
+  return output;
+}
+
+function getAutoTuneCorrection(input, sr, scale, strength) {
+  if (strength === 0 || scale.length === 12) return 0;
+  // Estimate dominant pitch via zero-crossing rate
+  let crossings = 0;
+  for (let i = 1; i < Math.min(input.length, 4096); i++) {
+    if ((input[i] >= 0) !== (input[i-1] >= 0)) crossings++;
+  }
+  const estFreq = (crossings / 2) * (sr / 4096);
+  if (estFreq < 60 || estFreq > 1200) return 0;
+
+  const midi = 12 * Math.log2(estFreq / 440) + 69;
+  const semitone = ((midi % 12) + 12) % 12;
+
+  // Find nearest note in scale
+  let nearestDist = Infinity;
+  for (const note of scale) {
+    let dist = ((semitone - note + 6 + 12) % 12) - 6; // wrap to -6..+6
+    if (Math.abs(dist) < Math.abs(nearestDist)) nearestDist = dist;
+  }
+  return -nearestDist * strength;
+}
+
+function makeHannWindow(size) {
+  const w = new Float32Array(size);
+  for (let i = 0; i < size; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (size - 1)));
+  return w;
+}
+
+// ===== WAV ENCODER =====
+function audioBufferToWav(buffer) {
+  const nCh = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const len = buffer.length;
+  const bytesPerSample = 2;
+  const blockAlign = nCh * bytesPerSample;
+  const byteRate = sr * blockAlign;
+  const dataSize = len * blockAlign;
+
+  const ab = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(ab);
+
+  const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, nCh, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < len; i++) {
+    for (let ch = 0; ch < nCh; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+// ===== PLAYBACK =====
+playPauseBtn.addEventListener('click', () => {
+  if (isPlaying) pausePlayback();
+  else startPlayback();
+});
+
+async function startPlayback() {
+  if (!outputAudioBuffer) return;
+  const ctx = getAudioCtx();
+  if (playbackSource) { try { playbackSource.stop(); } catch(e){} }
+  playbackSource = ctx.createBufferSource();
+  playbackSource.buffer = outputAudioBuffer;
+  playbackSource.connect(ctx.destination);
+  playbackSource.start(0, playOffset);
+  playStartTime = ctx.currentTime - playOffset;
+  isPlaying = true;
+  playPauseBtn.textContent = '⏸';
+  playbackSource.onended = () => {
+    if (isPlaying) {
+      isPlaying = false;
+      playOffset = 0;
+      playPauseBtn.textContent = '▶';
+      progressFill.style.width = '0%';
+      timeDisplay.textContent = '0:00';
+    }
+  };
+  updateProgress();
+}
+
+function pausePlayback() {
+  if (!playbackSource) return;
+  const ctx = getAudioCtx();
+  playOffset = ctx.currentTime - playStartTime;
+  try { playbackSource.stop(); } catch(e){}
+  isPlaying = false;
+  playPauseBtn.textContent = '▶';
+}
+
+function updateProgress() {
+  if (!isPlaying) return;
+  const ctx = getAudioCtx();
+  const elapsed = ctx.currentTime - playStartTime;
+  const dur = outputAudioBuffer.duration;
+  const pct = Math.min(100, (elapsed / dur) * 100);
+  progressFill.style.width = pct + '%';
+  const secs = Math.floor(elapsed);
+  timeDisplay.textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  if (elapsed < dur) requestAnimationFrame(updateProgress);
+}
+
+progressBar.addEventListener('click', e => {
+  if (!outputAudioBuffer) return;
+  const rect = progressBar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  playOffset = pct * outputAudioBuffer.duration;
+  if (isPlaying) {
+    pausePlayback();
+    isPlaying = true; // trick
+    startPlayback();
+  }
+  const secs = Math.floor(playOffset);
+  timeDisplay.textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  progressFill.style.width = (pct * 100) + '%';
+});
+
+// ===== DOWNLOAD =====
+downloadBtn.addEventListener('click', () => {
+  if (!outputBlob) return;
+  const url = URL.createObjectURL(outputBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'voicetune_output.wav';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ===== CLEAR =====
+clearBtn.addEventListener('click', () => {
+  if (isPlaying) pausePlayback();
+  sourceAudioBuffer = null;
+  outputAudioBuffer = null;
+  outputBlob = null;
+  playOffset = 0;
+  processBtn.disabled = true;
+  clearBtn.disabled = true;
+  playerSection.classList.remove('visible');
+  outputVizSection.classList.add('hidden');
+  drawFlatLine(inputCtx2d, inputCanvas);
+  drawFlatLine(outputCtx2d, outputCanvas, '#a259ff30');
+  setStatus('Ready — Record ya File Upload karo', '');
+  fileInput.value = '';
+});
+
+function setStatus(msg, type='') {
+  statusMsg.textContent = msg;
+  statusMsg.className = 'status' + (type ? ' ' + type : '');
+}
+</script>
+</body>
+</html>
